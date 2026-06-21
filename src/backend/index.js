@@ -31,19 +31,26 @@ app.post('/produtos', async (req, res) => {
 
 
 app.put('/produtos/:id', async (req, res) => {
-  const { id } = req.params;
-  const { nome, descricao, estoque_critico } = req.body;
-  try {
-    const resultado = await pool.query(
-      'UPDATE produto SET nome = $1, descricao = $2, estoque_critico = $3 WHERE id = $4 RETURNING *',
-      [nome, descricao, estoque_critico, id]
-    );
-    res.json({ message: 'Produto atualizado com sucesso!', produto: resultado.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    const { id } = req.params;
+    const { nome, descricao, quantidade_estoque, estoque_critico } = req.body;
 
+    try {
+        const result = await pool.query(
+            `UPDATE produto 
+             SET nome = $1, descricao = $2, quantidade_estoque = $3, estoque_critico = $4 
+             WHERE id = $5 RETURNING *`,
+            [nome, descricao, quantidade_estoque, estoque_critico, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Produto não encontrado." });
+        }
+
+        res.json({ message: "Produto atualizado com sucesso!", produto: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 app.delete('/produtos/:id', async (req, res) => {
   const { id } = req.params;
