@@ -1,13 +1,13 @@
 -- =====================================================================
 -- INSTITUTO FEDERAL DO PIAUÍ - CAMPUS PICOS
--- Disciplina: Banco de Dados II - Período: 2026.1
+-- Disciplina: Banco de Dados II — Período: 2026.1
 -- Professor: João Paulo
--- Trabalho: Procedures, Functions e Triggers com Aplicação
+-- Trabalho Prático: Procedures, Functions e Triggers com Aplicação
 -- Tema: Sistema de Almoxarifado Escolar
 -- =====================================================================
 
 -- =====================================================================
--- 1. LIMPEZA DO BANCO (Garante que o script possa ser rodado do zero)
+-- 1. LIMPEZA DE ESTRUTURAS ANTERIORES (Garante execução limpa do script)
 -- =====================================================================
 DROP PROCEDURE IF EXISTS registrar_saida_material;
 DROP TRIGGER IF EXISTS trigger_saida_estoque ON saida_estoque;
@@ -23,8 +23,9 @@ DROP TABLE IF EXISTS produto;
 DROP TABLE IF EXISTS funcionario;
 
 -- =====================================================================
--- 2. CRIAÇÃO DAS TABELAS (DDL - Com chaves e restrições inline)
+-- 2. CRIAÇÃO DAS TABELAS (DDL)
 -- =====================================================================
+
 
 CREATE TABLE funcionario (
     id SERIAL PRIMARY KEY,
@@ -32,6 +33,7 @@ CREATE TABLE funcionario (
     matricula VARCHAR(20) UNIQUE NOT NULL,
     cargo VARCHAR(50) NOT NULL
 );
+
 
 CREATE TABLE produto (
     id SERIAL PRIMARY KEY,
@@ -41,21 +43,28 @@ CREATE TABLE produto (
     estoque_critico INT DEFAULT 5 NOT NULL
 );
 
+
 CREATE TABLE entrada_estoque (
     id SERIAL PRIMARY KEY,
-    id_produto INT NOT NULL REFERENCES produto(id) ON DELETE CASCADE,
-    id_funcionario INT NOT NULL REFERENCES funcionario(id),
+    id_produto INT NOT NULL,
+    id_funcionario INT NOT NULL,
     quantidade INT NOT NULL CHECK (quantidade > 0),
-    data_entrada TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    data_entrada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_entrada_produto FOREIGN KEY (id_produto) REFERENCES produto(id) ON DELETE CASCADE,
+    CONSTRAINT fk_entrada_funcionario FOREIGN KEY (id_funcionario) REFERENCES funcionario(id)
 );
+
 
 CREATE TABLE saida_estoque (
     id SERIAL PRIMARY KEY,
-    id_produto INT NOT NULL REFERENCES produto(id) ON DELETE CASCADE,
-    id_funcionario INT NOT NULL REFERENCES funcionario(id),
+    id_produto INT NOT NULL,
+    id_funcionario INT NOT NULL,
     quantidade INT NOT NULL CHECK (quantidade > 0),
-    data_saida TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    data_saida TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_saida_produto FOREIGN KEY (id_produto) REFERENCES produto(id) ON DELETE CASCADE,
+    CONSTRAINT fk_saida_funcionario FOREIGN KEY (id_funcionario) REFERENCES funcionario(id)
 );
+
 
 CREATE TABLE log_movimentacao (
     id SERIAL PRIMARY KEY,
@@ -67,10 +76,10 @@ CREATE TABLE log_movimentacao (
 );
 
 -- =====================================================================
--- 3. FUNCTIONS (PL/pgSQL)
+-- 3. CRIAÇÃO DAS FUNCTIONS (PL/pgSQL)
 -- =====================================================================
 
--- Function Escalar: Retorna o saldo de um produto para apoiar a Procedure
+
 CREATE OR REPLACE FUNCTION consultar_estoque(p_id_produto INT)
 RETURNS INT AS $$
 DECLARE
@@ -81,7 +90,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function de Tabela: Filtra os produtos com estoque abaixo do crítico
+
 CREATE OR REPLACE FUNCTION listar_produtos_criticos()
 RETURNS TABLE(id INT, nome VARCHAR, quantidade_estoque INT, estoque_critico INT) AS $$
 BEGIN
@@ -93,20 +102,20 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =====================================================================
--- 4. TRIGGERS (Gatilhos de Automação e Auditoria)
+-- 4. CRIAÇÃO DOS GATILHOS (TRIGGERS)
 -- =====================================================================
 
--- Gatilho para Entradas de Estoque
+
 CREATE OR REPLACE FUNCTION tg_atualizar_estoque_entrada()
 RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE produto 
-    SET quantidade_estoque = quantidade_estoque + NEW.quantidade 
+    UPDATE produto
+    SET quantidade_estoque = quantidade_estoque + NEW.quantidade
     WHERE id = NEW.id_produto;
 
     INSERT INTO log_movimentacao (tipo_movimentacao, id_produto, quantidade, descricao)
-    VALUES ('ENTRADA', NEW.id_produto, NEW.quantidade, 'Entrada de lote realizada pelo funcionário ID ' || NEW.id_funcionario);
-    
+    VALUES ('ENTRADA', NEW.id_produto, NEW.quantidade, 'Entrada de lote pelo funcionário ID ' || NEW.id_funcionario);
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -116,17 +125,17 @@ AFTER INSERT ON entrada_estoque
 FOR EACH ROW EXECUTE FUNCTION tg_atualizar_estoque_entrada();
 
 
--- Gatilho para Saídas de Estoque
+
 CREATE OR REPLACE FUNCTION tg_atualizar_estoque_saida()
 RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE produto 
-    SET quantidade_estoque = quantidade_estoque - NEW.quantidade 
+    UPDATE produto
+    SET quantidade_estoque = quantidade_estoque - NEW.quantidade
     WHERE id = NEW.id_produto;
 
     INSERT INTO log_movimentacao (tipo_movimentacao, id_produto, quantidade, descricao)
-    VALUES ('SAIDA', NEW.id_produto, NEW.quantidade, 'Saída de material autorizada pelo funcionário ID ' || NEW.id_funcionario);
-    
+    VALUES ('SAIDA', NEW.id_produto, NEW.quantidade, 'Saída autorizada pelo funcionário ID ' || NEW.id_funcionario);
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -136,7 +145,7 @@ AFTER INSERT ON saida_estoque
 FOR EACH ROW EXECUTE FUNCTION tg_atualizar_estoque_saida();
 
 -- =====================================================================
--- 5. PROCEDURE (Controle Transacional com COMMIT/ROLLBACK)
+-- 5. CRIAÇÃO DA PROCEDURE PRINCIPAL (Controle Transacional)
 -- =====================================================================
 
 CREATE OR REPLACE PROCEDURE registrar_saida_material(
@@ -149,37 +158,34 @@ AS $$
 DECLARE
     v_estoque_disponivel INT;
 BEGIN
-    -- Busca o saldo usando a Function auxiliar
+    
     v_estoque_disponivel := consultar_estoque(p_id_produto);
     
-    -- Validação de quantidade informada
+    
     IF p_quantidade <= 0 THEN
         RAISE NOTICE 'Erro: A quantidade de saída deve ser maior que zero.';
         ROLLBACK;
         RETURN;
     END IF;
 
-    -- Validação de Saldo: Se faltar estoque, desfaz tudo (ROLLBACK)
+    
     IF v_estoque_disponivel < p_quantidade THEN
         RAISE NOTICE 'Transação Abortada (ROLLBACK): Estoque insuficiente.';
         ROLLBACK;
         RETURN;
     END IF;
 
-    -- Se houver estoque, insere a saída (o que dispara o trigger de baixa)
-    INSERT INTO saida_estoque (id_produto, id_funcionario, quantity_estoque) -- Opa, coluna corrigida para 'quantidade' conforme seu DER lúdico!
-    -- Retificando o nome da coluna para bater 100% com a tabela criada acima:
-    INSERT INTO saida_estoque (id_produto, id_funcionario, quantidade) 
+    
+    INSERT INTO saida_estoque (id_produto, id_funcionario, quantidade)
     VALUES (p_id_produto, p_id_funcionario, p_quantidade);
 
-    -- Confirma a operação permanentemente no banco
+    
     COMMIT;
-    RAISE NOTICE 'Transação Confirmada (COMMIT): Saída registrada com sucesso.';
 END;
 $$;
 
 -- =====================================================================
--- 6. CARGA INICIAL DE TESTES (DML)
+-- 6. CARGA INICIAL DE TESTE (DML) - Evita erros de chaves estrangeiras
 -- =====================================================================
 INSERT INTO funcionario (nome, matricula, cargo) VALUES 
 ('Professor João Paulo', 'IFPI202601', 'Docente BD2'),
