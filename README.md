@@ -1,7 +1,7 @@
 # 🎒 Sistema de Almoxarifado Escolar
 > **Documentação Técnica do Projeto e Guia de Execução Local**
 > Disciplina: Banco de Dados II — Prof. João Paulo
-> Instituto Federal do Piauí (IFPI) — Campus Picos [cite: 103, 104, 106]
+> Instituto Federal do Piauí (IFPI) — Campus Picos
 
 Este arquivo consolida a fundamentação teórica, as regras de negócio implementadas e o guia prático passo a passo para implantar, executar e testar a aplicação na sua máquina local.
 
