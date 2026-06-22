@@ -16,11 +16,11 @@
         <section class="card">
             <h2>Novo Produto</h2>
             <form id="form-produto">
-            <input type="text" id="prod-nome" placeholder="Nome do Produto (Ex: Giz)" required>
-            <textarea id="prod-descricao" placeholder="Descrição do material"></textarea>
-            <input type="number" id="prod-critico" placeholder="Estoque Crítico (Padrão: 5)" min="0">
-            <input type="number" id="prod-quantidade" placeholder="Quantidade Inicial no Estoque" min="0">
-            <button type="submit">Cadastrar Produto</button>
+                <input type="text" id="prod-nome" placeholder="Nome do Produto (Ex: Giz)" required>
+                <textarea id="prod-descricao" placeholder="Descrição do material"></textarea>
+                <input type="number" id="prod-critico" placeholder="Estoque Crítico (Padrão: 5)" min="0">
+                <input type="number" id="prod-quantidade" placeholder="Quantidade Inicial no Estoque" min="0">
+                <button type="submit">Cadastrar Produto</button>
             </form>
         </section>
 
@@ -43,6 +43,7 @@
             <div class="tab-buttons">
                 <button onclick="carregarProdutos()">Todos os Produtos</button>
                 <button onclick="carregarCriticos()" class="btn-warning">Estoque Crítico</button>
+                <button onclick="carregarLogs()" style="background-color: #9b59b6; color: white;">Histórico de Logs</button>
             </div>
             
             <div class="table-container">
@@ -53,7 +54,7 @@
                     </thead>
                     <tbody id="corpo-tabela">
                         <tr>
-                            <td colspan="4" style="text-align: center;">Clique em um dos botões acima para carregar os dados.</td>
+                            <td colspan="5" style="text-align: center;">Clique em um dos botões acima para carregar os dados.</td>
                         </tr>
                     </tbody>
                 </table>

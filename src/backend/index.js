@@ -29,6 +29,16 @@ app.post('/produtos', async (req, res) => {
   }
 });
 
+app.get('/logs', async (req, res) => {
+    try {
+        
+        const result = await pool.query('SELECT * FROM log_movimentacao ORDER BY data_log DESC');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
 app.put('/produtos/:id', async (req, res) => {
     const { id } = req.params;
